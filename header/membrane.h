@@ -1,43 +1,43 @@
+#include<string>
 
-enum Point_Type 
+using std::string;
+
+enum PointType 
 {
 	BORDER,
 	GRID,
-	INACTIVE;
-}
-
-
+	INACTIVE
+};
 
 class Point
 {
 private:
 	double _x_0;					// initial positions
 	double _y_0;		 
+	PointType _type;
+public: 
 
-	double _u;					// offsets: 	u - Ox axis
-	double _v;					//		v - Oy axis
-	double _w;					//		w - Oz (vertical)
+	double u[3];					// offsets: 	u - Ox axis
+	double v[3];					//		v - Oy axis
+	double w[3];					//		w - Oz (vertical)
 
 //	double _sigma_xx, _sigma_yy, _sigma_zz;		// stress tensor
 //	double _tau_xy, _tau_xz, _tau_yz;
 	
-	PointType _type;
 
-public: 
-
-	Point(double x_0, double y_0, PointType pt);
+	Point(double x_0 = 0, double y_0 = 0, PointType pt = INACTIVE);
+	Point(Point&);
 	~Point(){};
 
-	double x_0 {return _x_0;}
-	double y_0 {return _y_0;}
-	double z_0 {return _z_0;}
+	PointType type() {return _type;}
+	double x_0() { return _x_0;}			
+	double y_0() { return _y_0;}		
 
-	double u {return _u;}
-	double v {return _v;}
-	double w {return _w;}
-	
-	PointType _type {return _type};
-}
+	void Set(double x_0, double y_0, PointType tp = GRID);
+	void ToBorder();
+
+	string ToString();
+};
 
 
 class Grid2D
@@ -48,14 +48,18 @@ private:
 
 	Point *_grid;
 public: 
-	Grid2D(unsigned x_nodes, unsigned y_nodes, double x_step, double y_step);
-	~Grid2D();
-	
-	
-}
-Grid2D::Point* operator [](int y)
-{
-	return _grid + y*_x_nodes;
-}
+	Grid2D(unsigned x_nodes = 0, unsigned y_nodes = 0);
+//	Grid2D(Grid2D&);
+	~Grid2D(){};
+
+	Point* operator [](int y)
+	{
+		return _grid + y*_x_nodes;
+	}
+
+	void SetRect(double dx , double dy);
+	void OuterBorder();
+	void DiscardOffsets();
+};
 
 
