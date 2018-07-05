@@ -20,4 +20,5 @@ public:
 	void Iteration();
 	void Dump(FILE *fp);
 	void Print() {this->Dump(stdout);}
+	vtkSmartPointer<vtkStructuredGrid> vtkSGrid();
 };

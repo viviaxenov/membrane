@@ -2,6 +2,10 @@
 #define MEMBRANE_INCL
 
 #include<string>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
+#include <vtkStructuredGrid.h>
+#include <vtkSmartPointer.h>
 
 using std::string;
 
@@ -64,6 +68,8 @@ public:
 
 	void SetRect(double dx , double dy);		// sets grid geometry to rectangle with steps dx and dy
 	void OuterBorder();				// sets type of border cells to border correctly
+
+	vtkSmartPointer<vtkStructuredGrid> vtkSGrid();
 							// ****	|
 							// *00*	| * - border nodes
 							// *00*	| 0 - inner (GRID) nodes

@@ -125,3 +125,33 @@ void Grid2D::DiscardOffsets()
 		}
 	}
 }
+
+vtkSmartPointer<vtkStructuredGrid> Grid2D::vtkSGrid()
+{
+	vtkSmartPointer<vtkStructuredGrid> structuredGrid =
+		    vtkSmartPointer<vtkStructuredGrid>::New();
+ 
+	vtkSmartPointer<vtkPoints> points =
+	    vtkSmartPointer<vtkPoints>::New();
+	for(int i = 0; i < _y_nodes; i++)
+	{
+		for(int j = 0; j < _x_nodes; j++)
+		{
+			double x = (*this)[i][j].x_0()
+					+ (*this)[i][j].u[1]; 
+			double y = (*this)[i][j].y_0()
+					+ (*this)[i][j].v[1]; 
+			double z = (*this)[i][j].w[1]; 
+			points->InsertNextPoint(x, y, z);
+		}
+	}
+	
+	structuredGrid->SetDimensions(_x_nodes, _y_nodes, 1);
+	structuredGrid->SetPoints(points);
+	return structuredGrid;
+}
+
+
+
+
+

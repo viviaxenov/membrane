@@ -78,3 +78,7 @@ void UTask::Dump(FILE *fp)
 	}
 }
 
+vtkSmartPointer<vtkStructuredGrid> UTask::vtkSGrid()
+{
+	return grid.vtkSGrid();
+}
