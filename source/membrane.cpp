@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<strings.h>
+#include<assert.h>
 
 
 #include"../header/membrane.h"
@@ -61,14 +62,20 @@ void Point::ToBorder()
 
 Grid2D::Grid2D(unsigned x_nodes, unsigned y_nodes)
 {
+
 	if(x_nodes == 0 || y_nodes == 0)
+	{
+		printf("ERROR: zero dimension!\n");
+		assert(0);
+	}
+/*	if(x_nodes == 0 || y_nodes == 0)
 	{
 		_x_nodes = 0;
 		_y_nodes = 0;
 		_grid = NULL;
 		return;
 	}
-
+*/
 	_x_nodes = x_nodes;
 	_y_nodes = y_nodes;
 	
@@ -105,7 +112,6 @@ void Grid2D::OuterBorder()
 		(*this)[_y_nodes - 1][i].ToBorder();		
 	}
 }
-
 
 void Grid2D::DiscardOffsets()
 {
