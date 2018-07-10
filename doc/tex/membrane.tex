@@ -1,0 +1,152 @@
+\documentclass[12pt,a4paper,fleqn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb, amsmath, multicol}
+\usepackage[russian]{babel}
+\usepackage{graphicx}
+\usepackage[shortcuts,cyremdash]{extdash}
+%\usepackage{wrapfig}
+%\usepackage{floatflt}
+%\usepackage{lipsum}
+
+\oddsidemargin=-15.4mm
+\textwidth=190mm
+\headheight=-32.4mm
+\textheight=277mm
+\tolerance=100
+\parindent=0pt
+\parskip=8pt
+\pagestyle{empty}
+\renewcommand{\tg}{\mathop{\mathrm{tg}}\nolimits}
+\renewcommand{\ctg}{\mathop{\mathrm{ctg}}\nolimits}
+\renewcommand{\arctan}{\mathop{\mathrm{arctg}}\nolimits}
+\newcommand{\divisible}{\mathop{\raisebox{-2pt}{\vdots}}}
+\RequirePackage{caption2}
+\renewcommand\captionlabeldelim{}
+\newcommand*{\hm}[1]{#1\nobreak\discretionary{}%
+{\hbox{$\mathsurround=0pt #1$}}{}}
+\title{Задача про мембрану}
+\author{Аксенов Виталий}
+\date{$9.7.2018$~---~$\infty$}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+
+
+\section{Уравнение движения элемента}
+Строим сетку на поверхности мембраны. Запишем второй закон Ньютона для элемента сетки:
+\numberwithin{equation}{section}
+\begin{equation}
+	m\overline{a} = \overline{F}_{el} + \overline{F}_{ext}
+\end{equation}
+$F_{ext}$~---~внешняя сила, действует не везде, а в месте удара.
+Распишем упругую силу $F_{el}$.
+Представим поверхность как $w(x,y)$. Базис на поверхности задается векторами $r_x=(1, 0, \frac{\partial w}{\partial x})^\mathbf{T}$,  $r_y=(0, 1, \frac{\partial w}{\partial y})^\mathbf{T}$.
+В проекции на эти векторы
+\begin{align}
+	m\frac{\partial v_x}{\partial t} &= h\delta(\sigma_{xx}^{right} - \sigma_{xx}^{left}) + h\delta(\sigma_{xy}^{right} - \sigma_{xy}^{left}) \\
+	m\frac{\partial v_y}{\partial t} &= h\delta(\sigma_{yy}^{top} - \sigma_{yy}^{bottom}) + h\delta(\sigma_{xy}^{top} - \sigma_{xy}^{bottom})
+\end{align}
+
+Напряжения выражаются через деформации:
+\begin{align}
+	\varepsilon_{xx} &= \frac{1}{E}\sigma_{xx} -\frac{\mu}{E}\sigma_{yy} \\
+	\varepsilon_{yy} &= \frac{1}{E}\sigma_{yy} -\frac{\mu}{E}\sigma_{xx} \\
+	\varepsilon_{xy} &= \frac{1}{G}\sigma_{xy}, \quad G = \frac{E}{2(1 + \mu)}
+\end{align}
+где $E$~---~модуль Юнга, $\mu$~---~коэффициент Пуассона.
+\begin{align}
+	\sigma_{xx} &= \frac{E}{1 - \mu^2}\varepsilon_{xx} + \frac{\mu E}{1 - \mu^2}\varepsilon_{yy} \\
+	\sigma_{yy} &= \frac{E}{1 - \mu^2}\varepsilon_{yy} + \frac{\mu E}{1 - \mu^2}\varepsilon_{xx} \\
+	\sigma_{xy} &= G\varepsilon_{xy}
+\end{align}
+
+Пусть $u^*, v^*$~---~координаты в базисе на поверхности мембраны (вблизи какой-то точки $(x_0, y_0)$). Если в тензоре деформаций откинуть квадратичные члены, то:
+\begin{align}
+	\varepsilon_{xx} &= \frac{\partial u^*}{\partial x} \\
+	\varepsilon_{yy} &= \frac{\partial v^*}{\partial y} \\
+	\varepsilon_{xy} &= \frac{1}{2} \left( \frac{\partial u^*}{\partial y} + \frac{\partial v^*}{\partial x}  \right)
+\end{align}
+
+\clearpage
+
+\section{Численное приближение}
+
+Схема расчета:
+\begin{itemize}
+	\item Считаем деформации.
+	\item Считаем напряжения.
+	\item Добавляем внешние силы. Получаем $dv$.
+	\item Делаем шаг по $dt$, пересчитываем скорости.
+	\item Делаем шаг по $dt$, пересчитываем координаты.
+\end{itemize}
+
+Приближаем векторы $r_x, r_y$. В точке с индексами $(n, k)$:
+\begin{equation}
+	\frac{\partial w}{\partial x} \sim \frac{w_{n+1,k} - w_{n-1, k}}{2h} \\
+	\frac{\partial w}{\partial y} \sim \frac{w_{n,k+1} - w_{n, k-1}}{2h}
+\end{equation}
+
+Введем векторы 
+\begin{equation}
+	\overline{\delta}_x = \begin{pmatrix}
+				u_{n+1, k} - u_{n-1,k} \\
+				v_{n+1, k} - v_{n-1,k} \\
+				w_{n+1, k} - w_{n-1,k} 
+				\end{pmatrix} \\
+	\overline{\delta}_y = \begin{pmatrix}
+				u_{n, k+1} - u_{n,k-1} \\
+				v_{n, k+1} - v_{n,k-1} \\
+				w_{n, k+1} - w_{n,k-1} 
+				\end{pmatrix} \\
+\end{equation}
+
+Спроецируем их на наш локальный базис $\overline{r}_x, \overline{r}_y$:
+\begin{align}
+	\Pi_{xx} &= \frac{(\overline{\delta}_x, \overline{r}_x)}{\sqrt{(\overline{r}_x, \overline{r}_x)}} &\quad 
+		\Pi_{yy} &= \frac{(\overline{\delta}_y, \overline{r}_y)}{\sqrt{(\overline{r}_y, \overline{r}_y)}} \\
+	\Pi_{xy} &= \frac{(\overline{\delta}_x, \overline{r}_y)}{\sqrt{(\overline{r}_y, \overline{r}_y)}} &\quad 
+		\Pi_{yx} &= \frac{(\overline{\delta}_y, \overline{r}_x)}{\sqrt{(\overline{r}_x, \overline{r}_x)}} 
+\end{align}
+
+Приближаем деформации:
+
+\begin{equation}
+	\varepsilon_{xx} \sim \frac{1}{2h}\Pi_{xx},\ \varepsilon_{yy} \sim \frac{1}{2h}\Pi_{yy}, 
+		\varepsilon_{xy} \sim \frac{1}{4h}(\Pi_{xy} + \Pi_{yx})
+\end{equation}
+
+Зная деформации, получаем напряжения $\sigma_{ij}$, затем приращения скоростей. Проецируем их обратно в трёхмерное пространство:
+\begin{align}
+	\frac{\partial u}{\partial t} &= \frac{1}{\sqrt{1 + \left( \frac{\partial w}{\partial x} \right)^2 }} \frac{\partial v_x}{\partial t} \\
+	\frac{\partial v}{\partial t} &= \frac{1}{\sqrt{1 + \left( \frac{\partial w}{\partial y} \right)^2 }} \frac{\partial v_y}{\partial t} \\
+	\frac{\partial w}{\partial t} &= \frac{\partial w}{\partial x} \frac{\partial u}{\partial t} 
+			+ \frac{\partial w}{\partial y} \frac{\partial v}{\partial t}
+\end{align}
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document}
