@@ -46,8 +46,8 @@ $F_{ext}$~---~внешняя сила, действует не везде, а в
 Представим поверхность как $w(x,y)$. Базис на поверхности задается векторами $r_x=(1, 0, \frac{\partial w}{\partial x})^\mathbf{T}$,  $r_y=(0, 1, \frac{\partial w}{\partial y})^\mathbf{T}$.
 В проекции на эти векторы
 \begin{align}
-	m\frac{\partial v_x}{\partial t} &= h\delta(\sigma_{xx}^{right} - \sigma_{xx}^{left}) + h\delta(\sigma_{xy}^{right} - \sigma_{xy}^{left}) \\
-	m\frac{\partial v_y}{\partial t} &= h\delta(\sigma_{yy}^{top} - \sigma_{yy}^{bottom}) + h\delta(\sigma_{xy}^{top} - \sigma_{xy}^{bottom})
+	m\frac{\partial v_x}{\partial t} &= h\delta(\sigma_{xx}^{right} - \sigma_{xx}^{left}) + h\delta(\sigma_{xy}^{top} - \sigma_{xy}^{bottom}) \\
+	m\frac{\partial v_y}{\partial t} &= h\delta(\sigma_{yy}^{top} - \sigma_{yy}^{bottom}) + h\delta(\sigma_{xy}^{right} - \sigma_{xy}^{left})
 \end{align}
 
 Напряжения выражаются через деформации:

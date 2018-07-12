@@ -2,10 +2,12 @@
 #define MEMBRANE_INCL
 
 #include<string>
-//#include <vtkCellArray.h>
-//#include <vtkPoints.h>
-//#include <vtkStructuredGrid.h>
-//#include <vtkSmartPointer.h>
+#include <vtkCellArray.h>
+#include <vtkPoints.h>
+#include <vtkStructuredGrid.h>
+#include <vtkSmartPointer.h>
+
+#include"../header/vec3.h"
 
 using std::string;
 
@@ -21,30 +23,26 @@ class Point
 private:
 	double _x_0;					// initial positions
 	double _y_0;		 
-	double _rho;					// density
-	double _A, _B, _G;				// coeffs for counting \sigma(\epsilon)
+	PointType _type;
+public: 
+	double rho;					// density
+	double A, B, G;					// coeffs for counting \sigma(\epsilon)
 		 					// A = \frac{E}{1 - \mu^2}
 							// B = \mu A
 							// G = \frac{E}{2(1 + \mu)}
 							// where E - Young's modulus
 							//	\mu - Poisson's ratio
-	PointType _type;
-public: 
 
-	double u;					// offsets: 	u - Ox axis
-	double v;					//		v - Oy axis
-	double w;					//		w - Oz (vertical)
+	vec3 r;						// offsets: 	u - Ox axis
+
+							//		v - Oy axis
+							//		w - Oz (vertical)
 	
-	double v_u;					// speeds: 	u - Ox axis
-	double v_v;					//		v - Oy axis
-	double v_w;					//		w - Oz (vertical)
+	vec3 v;						// velocity 
 							
-	double dv_u;					// speed differentials
-	double dv_v;					//		
-	double dv_w;					//		
-
-
-	
+	vec3 dv;					// velocity differentials
+	vec3 F_ext;					// external force
+	double sigma_xx, sigma_yy, sigma_xy;
 
 	Point(double x_0 = 0, double y_0 = 0,
 			 PointType pt = INACTIVE);	// constructor	
@@ -54,10 +52,6 @@ public:
 	PointType type() {return _type;}		// getter functions
 	double x_0() { return _x_0;}			
 	double y_0() { return _y_0;}		
-	double rho() { return _rho;}		
-	double A() { return _A;}		
-	double B() { return _B;}		
-	double G() { return _G;}		
 
 	void Set(double x_0, double y_0, PointType tp = GRID);
 							// set point's place and type
@@ -83,6 +77,10 @@ public:
 	Grid2D(unsigned x_nodes = 0, unsigned y_nodes = 0);
 //	Grid2D(Grid2D&);
 	~Grid2D(){};
+	
+	unsigned x_nodes() {return _x_nodes;}		
+	unsigned y_nodes() {return _y_nodes;}		
+
 
 	Point* operator [](int y)			// data access in a[y][x] manner
 	{
@@ -97,21 +95,47 @@ public:
 							// *00*	| 0 - inner (GRID) nodes
 							// ****	|
 
-	void DiscardOffsets();				// sets u, v_u, dv_u etc to zero 
+	void DiscardOffsets();				// sets r, v, dv etc to zero 
 
 	bool IsCorrect();				
 
-//	vtkSmartPointer<vtkStructuredGrid> vtkSGrid();
 };
+
+#define DEF_E 5e6
+#define DEF_MU 0.5
+#define DEF_RHO 1200
+#define DEF_DELTA 0.005
+// these defaults are temporary
+// will be removed when task input from file is done
+
 
 class Task
 {
 private: 
 	Grid2D _grid;
 	
-	double tau;
-	double h;
-}
+	double _tau;					// time step
+	double _h;					// distance btw greed points
+	// assume membrane to be rectangular; will make other geometry
+	// when file input is done
+	double _delta;					// membrane thickness
+							// it's here temporarily, assume it to be 
+							// the same across the whole membrane
+
+	void CountSigmas();
+	void DvInner();
+	void DvTopBot();
+	void DvRightLeft();
+	void DvCorners();
+public:
+	Task(double tau, double h, double delta, unsigned cells);
+	void SetFextPt(unsigned x, unsigned y, 
+			double F_u, double F_v, double F_w);
+	
+	void Iteration();
+
+	vtkSmartPointer<vtkStructuredGrid> vtkSGrid();
+};
 
 
 #endif /* MEMBRANE_INCL*/

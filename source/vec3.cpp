@@ -56,6 +56,13 @@ void vec3::Print()
 	printf("(%lg, %lg, %lg)\n", u, v, w);
 }
 
+void vec3::zero()
+{
+	u = 0.0;
+	v = 0.0;
+	w = 0.0;
+}
+
 double vec3::DotProduct(const vec3& a, const vec3& b)
 {
 	return a.u*b.u + a.v*b.v + a.w*b.w; 

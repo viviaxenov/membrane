@@ -25,6 +25,8 @@ public:
 	vec3& operator+=(const vec3& right);
 	vec3& operator-=(const vec3& right);
 	vec3& operator*=(double c);
+
+	void zero();
 	
 	void Print();
 
@@ -32,11 +34,12 @@ public:
 	static double Norm(const vec3& a);
 	static double Projection(const vec3& a, const vec3& b);
 
-//	static const vec3 zero(0, 0, 0);
-	
+
 };
 vec3 operator+(const vec3& right, const vec3& left);
 vec3 operator-(const vec3& right, const vec3& left);
 vec3 operator*(double c, const vec3& left);
+
+
 
 #endif /*VEC_INCLUDED */ 
