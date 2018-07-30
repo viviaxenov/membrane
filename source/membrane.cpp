@@ -4,6 +4,7 @@
 #include<math.h>
 
 #include"../header/membrane.h"
+#include"../header/constants.h"
 
 const double ZERO_TOL = 1e-9;
 
@@ -317,7 +318,8 @@ void Task::DvInner()
 			
 			_grid[i][j].dv.u = vx_t/norm_x;
 			_grid[i][j].dv.v = vy_t/norm_y;
-			_grid[i][j].dv.w = _grid[i][j].dv.u*w_x + _grid[i][j].dv.v*w_y;
+			_grid[i][j].dv.w =// vx_t*w_x/norm_x + vy_t*w_y/norm_y;
+					 _grid[i][j].dv.u*w_x + _grid[i][j].dv.v*w_y;
 			
 			_grid[i][j].dv += (1.0/_h/_h/_delta)*_grid[i][j].F_ext;
 
@@ -529,6 +531,19 @@ void Task::SetFextPt(unsigned x, unsigned y, double F_u, double F_v, double F_w)
 			
 
 
+void Task::SetOffPt(unsigned x, unsigned y, double u, double v, double w)
+{
+	
+	if(x >= _grid.x_nodes() || y >= _grid.y_nodes())
+	{
+		printf("Error: point out of range!\n");
+		assert(0);
+	}
+	_grid[y][x].r.u = u;
+	_grid[y][x].r.v = v;
+	_grid[y][x].r.w = w;
+}
+			
 
 
 

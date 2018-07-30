@@ -8,6 +8,7 @@
 #include <vtkSmartPointer.h>
 
 #include"../header/vec3.h"
+#include"../header/constants.h"
 
 using std::string;
 
@@ -101,12 +102,6 @@ public:
 
 };
 
-#define DEF_E 5e6
-#define DEF_MU 0.5
-#define DEF_RHO 1200
-#define DEF_DELTA 0.005
-// these defaults are temporary
-// will be removed when task input from file is done
 
 
 class Task
@@ -131,6 +126,8 @@ public:
 	Task(double tau, double h, double delta, unsigned cells);
 	void SetFextPt(unsigned x, unsigned y, 
 			double F_u, double F_v, double F_w);
+	void SetOffPt(unsigned x, unsigned y, 
+			double u, double v, double w);
 	
 	void Iteration();
 
