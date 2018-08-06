@@ -7,6 +7,8 @@
 #include <vtkPoints.h>
 #include <vtkStructuredGrid.h>
 #include <vtkSmartPointer.h>
+#include <vtkDoubleArray.h>
+#include <vtkPointData.h>
 
 #include"../header/vec3.h"
 #include"../header/constants.h"

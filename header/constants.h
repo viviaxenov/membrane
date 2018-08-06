@@ -12,7 +12,7 @@
 #define H 1e-2						// spacing
 #define N_CELLS	50
 #define F_EXT 5e-3					// external force	
-#define FRAMES 500			
-#define ITER_PER_FRAME 25
+#define FRAMES 50			
+#define ITER_PER_FRAME 10
 
 #endif /* CONSTANTS_INCL */

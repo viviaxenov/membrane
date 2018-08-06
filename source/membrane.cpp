@@ -228,6 +228,7 @@ vtkSmartPointer<vtkStructuredGrid> Task::vtkSGrid()
 
 	unsigned _x_nodes = _grid.x_nodes();
 	unsigned _y_nodes = _grid.y_nodes();
+	// dumping coordinates
 
 	for(int i = 0; i < _y_nodes; i++)
 	{
@@ -244,6 +245,57 @@ vtkSmartPointer<vtkStructuredGrid> Task::vtkSGrid()
 	
 	structuredGrid->SetDimensions(_x_nodes, _y_nodes, 1);
 	structuredGrid->SetPoints(points);
+
+	// dumping velocity vectors
+
+	vtkSmartPointer<vtkDoubleArray> vel = 
+		vtkSmartPointer<vtkDoubleArray>::New();
+	vel->SetName("Velocity");
+	vel->SetNumberOfComponents(3);
+	vel->SetNumberOfTuples(_x_nodes*_y_nodes);
+	for(int i = 0; i < _y_nodes; i++)
+	{
+		for(int j = 0; j < _x_nodes; j++)
+		{
+			vel->SetTuple3(_x_nodes*i + j, 
+				_grid[i][j].v.u,
+				_grid[i][j].v.v,
+				_grid[i][j].v.w);
+		}
+	}
+	structuredGrid->GetPointData()->AddArray(vel);
+	
+	// dumping elastic force data
+	vtkSmartPointer<vtkDoubleArray> sigma_xx = 
+		vtkSmartPointer<vtkDoubleArray>::New(),
+		sigma_yy = vtkSmartPointer<vtkDoubleArray>::New(),
+		sigma_xy = vtkSmartPointer<vtkDoubleArray>::New();
+	sigma_xx->SetName("sigma_xx");
+	sigma_xy->SetName("sigma_xy");
+	sigma_yy->SetName("sigma_yy");
+	sigma_xx->SetNumberOfComponents(1);
+	sigma_xy->SetNumberOfComponents(1);
+	sigma_yy->SetNumberOfComponents(1);
+	sigma_xx->SetNumberOfTuples(_x_nodes*_y_nodes);
+	sigma_yy->SetNumberOfTuples(_x_nodes*_y_nodes);
+	sigma_xy->SetNumberOfTuples(_x_nodes*_y_nodes);
+	for(int i = 0; i < _y_nodes; i++)
+	{
+		for(int j = 0; j < _x_nodes; j++)
+		{
+			sigma_xx->SetValue(_x_nodes*i + j, 
+						_grid[i][j].sigma_xx);	
+			sigma_xy->SetValue(_x_nodes*i + j, 
+						_grid[i][j].sigma_xy);	
+			sigma_yy->SetValue(_x_nodes*i + j, 
+						_grid[i][j].sigma_yy);	
+		}
+	}
+	 
+	structuredGrid->GetPointData()->AddArray(sigma_xx);
+	structuredGrid->GetPointData()->AddArray(sigma_xy);
+	structuredGrid->GetPointData()->AddArray(sigma_yy);
+
 	return structuredGrid;
 }
 
