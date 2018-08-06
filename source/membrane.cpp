@@ -19,7 +19,7 @@ Point::Point(double x_0, double y_0, PointType pt)
 {
 	_x_0 = x_0; 	
 	_y_0 = y_0; 	
-	_type = pt;
+	type = pt;
 	rho = 0; A = 0; B = 0; G = 0;
 
 	r.zero();
@@ -40,7 +40,7 @@ Point::Point(Point& orig)
 	B = orig.B; 	
 	_y_0 = orig._y_0; 	
 	rho = orig.rho; 	
-	_type = orig._type;
+	type = orig.type;
 	
 	r.zero();
 	v.zero();
@@ -57,7 +57,7 @@ string Point::ToString()
 	sprintf(s,	"x = %lg\n"
 			"y = %lg\n"
 			"Type %d\n",
-			_x_0, _y_0, _type);
+			_x_0, _y_0, type);
 	string res(s);
 	delete s;
 	return res;
@@ -67,7 +67,7 @@ void Point::Set(double x_0, double y_0, PointType pt)
 {
 	_x_0 = x_0; 	
 	_y_0 = y_0; 	
-	_type = pt;
+	type = pt;
 
 	r.zero();
 	v.zero();
@@ -78,7 +78,7 @@ void Point::Set(double x_0, double y_0, PointType pt)
 	sigma_yy = 0;
 }
 
-void Point::SetMaterial(double rho, double E, double mu)
+void Point::SetMaterial(double rho, double E, double mu, double delta)
 {
 	if(mu > 0.5 || mu <= - 1.0)
 	{
@@ -100,15 +100,14 @@ void Point::SetMaterial(double rho, double E, double mu)
 	A = E/(1.0 - mu*mu);
 	B = mu*A;
 	G = (A - B)/2.0;
+	this->delta = delta;
 }
 
-void Point::ToBorder()
-{
-	_type = BORDER;
-}
 
 bool Point::IsCorrect()
 {
+	if(type == INACTIVE)
+		return true;
 	double mu = B/A;
 	if((rho > 0)&&(mu > -1.0)&&(mu <= 0.5)&&(A > 0)&&(fabs((A - B)/2.0 - G) <= ZERO_TOL))
 		return true;
@@ -160,13 +159,13 @@ void Grid2D::SetRect(double dx , double dy)
 }
 
 
-void Grid2D::SetMaterialUniform(double rho, double E, double mu)
+void Grid2D::SetMaterialUniform(double rho, double E, double mu, double delta)
 {
 	for(unsigned i = 0; i < _y_nodes; i++)
 	{
 		for(unsigned j = 0; j < _x_nodes; j++)
 		{			
-			(*this)[i][j].SetMaterial(rho, E, mu);
+			(*this)[i][j].SetMaterial(rho, E, mu, delta);
 		}
 	}
 }
@@ -174,16 +173,20 @@ void Grid2D::SetMaterialUniform(double rho, double E, double mu)
 
 void Grid2D::OuterBorder()
 {
-	for(int i = 0; i < _y_nodes; i++)
+	for(int i = 1; i < _y_nodes - 1; i++)
 	{
-		(*this)[i][0].ToBorder();		
-		(*this)[i][_x_nodes - 1].ToBorder();		
+		(*this)[i][0].type = L_BORDER;		
+		(*this)[i][_x_nodes - 1].type = R_BORDER;
 	}
-	for(int i = 0; i < _x_nodes; i++)
+	for(int i = 1; i < _x_nodes - 1; i++)
 	{
-		(*this)[0][i].ToBorder();		
-		(*this)[_y_nodes - 1][i].ToBorder();		
+		(*this)[0][i].type = B_BORDER;		
+		(*this)[_y_nodes - 1][i].type = T_BORDER;		
 	}
+	(*this)[0][0].type = BL_CORNER;		
+	(*this)[0][_x_nodes - 1].type = BR_CORNER;		
+	(*this)[_y_nodes - 1][0].type = TL_CORNER;		
+	(*this)[_y_nodes - 1][_x_nodes - 1].type = TR_CORNER;		
 }
 
 void Grid2D::DiscardOffsets()
@@ -244,35 +247,110 @@ vtkSmartPointer<vtkStructuredGrid> Task::vtkSGrid()
 	return structuredGrid;
 }
 
+vec3 Grid2D::delta_x(unsigned x, unsigned y)
+{
+	if(x >= _x_nodes || y >= _y_nodes)
+	{
+		assert(!"ERROR: Index out of range!");
+	}
+	
+	double dx;
+	vec3 delta;
+	switch((*this)[y][x].type)
+	{
+		case GRID:
+		case T_BORDER:
+		case B_BORDER:
+			dx = (*this)[y][x + 1].x_0() - (*this)[y][x - 1].x_0();
+			delta = (*this)[y][x + 1].r - (*this)[y][x - 1].r; 
+			break;
+		case L_BORDER:
+		case TL_CORNER:
+		case BL_CORNER:
+			dx = (*this)[y][x + 1].x_0() - (*this)[y][x].x_0(); 
+			delta = (*this)[y][x + 1].r - (*this)[y][x].r; 
+			break;
+		case R_BORDER:
+		case TR_CORNER:
+		case BR_CORNER:
+			dx = (*this)[y][x].x_0() - (*this)[y][x - 1].x_0(); 
+			delta = (*this)[y][x].r - (*this)[y][x - 1].r; 
+			break;
+		case INACTIVE: 
+			assert(!"ERROR: Trying to calculate derivative for inactive cell");
+	}
+	return (1.0/dx)*delta;
+}
+
+vec3 Grid2D::delta_y(unsigned x, unsigned y)
+{
+	if(x >= _x_nodes || y >= _y_nodes)
+	{
+		assert(!"ERROR: Index out of range!");
+	}
+	
+	double dy;
+	vec3 delta;
+	switch((*this)[y][x].type)
+	{
+		case GRID:
+		case L_BORDER:
+		case R_BORDER:
+			dy = (*this)[y + 1][x].y_0() - (*this)[y - 1][x].y_0();
+			delta = (*this)[y + 1][x].r - (*this)[y - 1][x].r; 
+			break;
+		case B_BORDER:
+		case BL_CORNER:
+		case BR_CORNER:
+			dy = (*this)[y + 1][x].y_0() - (*this)[y][x].y_0(); 
+			delta = (*this)[y + 1][x].r - (*this)[y][x].r; 
+			break;
+		case T_BORDER:
+		case TR_CORNER:
+		case TL_CORNER:
+			dy = (*this)[y][x].y_0() - (*this)[y - 1][x].y_0(); 
+			delta = (*this)[y][x].r - (*this)[y - 1][x].r; 
+			break;
+		case INACTIVE: 
+			assert(!"ERROR: Trying to calculate derivative for inactive cell");
+	}
+	return (1.0/dy)*delta;
+}
+
 
 //-------------------------------------------------------------------------------
 //---------------@Task-----------------------------------------------------------
 //-------------------------------------------------------------------------------
 
-Task::Task(double tau, double h, double delta,  unsigned cells) :
-	_grid(cells, cells), _tau(tau), _h(h), _delta(delta)
+Task::Task(double tau, double h, unsigned cells) :
+	_grid(cells, cells), _tau(tau), _h(h)
 {
 	_grid.SetRect(_h, _h);
 	_grid.OuterBorder();
 
-	_grid.SetMaterialUniform(DEF_RHO, DEF_E, DEF_MU);
+	_grid.SetMaterialUniform(DEF_RHO, DEF_E, DEF_MU, DEF_DELTA);
 	// will be removed when task input from file is done
 }
 
 
+
+
+
 void Task::CountSigmas()						// assuming free border (sigma = 0 on outer border)
 {									// counting only for inner parts
-	unsigned X = _grid.x_nodes() - 1;
-	unsigned Y = _grid.y_nodes() - 1;
-	for(int i = 1; i < Y; i++)
+	unsigned X = _grid.x_nodes();
+	unsigned Y = _grid.y_nodes();
+	for(int i = 0; i < Y; i++)
 	{
-		for(int j = 1; j < X; j++)
+		for(int j = 0; j < X; j++)
 		{
-			vec3 delta_x = (_grid[i][j + 1].r - _grid[i][j - 1].r);
-			vec3 delta_y = (_grid[i + 1][j].r - _grid[i - 1][j].r);
+			vec3 delta_x = _grid.delta_x(j, i);
+			vec3 delta_y = _grid.delta_y(j, i);
 
-			double w_x = delta_x.w/2.0/_h;
-			double w_y = delta_y.w/2.0/_h;
+			double w_x = delta_x.w;
+			double w_y = delta_y.w;
+			_grid[i][j].w_x = w_x;				// saving for further use
+			_grid[i][j].w_y = w_y;
 
 			vec3 r_x(1, 0, w_x);
 			vec3 r_y(0, 1, w_y);
@@ -282,9 +360,9 @@ void Task::CountSigmas()						// assuming free border (sigma = 0 on outer border
 			double Pi_yx = vec3::Projection(delta_y, r_x);
 			double Pi_yy = vec3::Projection(delta_y, r_y);
 			
-			double eps_xx = Pi_xx/2.0/_h;
-			double eps_yy = Pi_yy/2.0/_h;
-			double eps_xy = (Pi_xy + Pi_yx)/4.0/_h;
+			double eps_xx = Pi_xx;
+			double eps_yy = Pi_yy;
+			double eps_xy = (Pi_xy + Pi_yx)/2.0;
 
 			_grid[i][j].sigma_xx = _grid[i][j].A*eps_xx + _grid[i][j].B*eps_yy;	
 			_grid[i][j].sigma_yy = _grid[i][j].A*eps_yy + _grid[i][j].B*eps_xx;	
@@ -293,26 +371,44 @@ void Task::CountSigmas()						// assuming free border (sigma = 0 on outer border
 	}
 }	
 
-void Task::DvInner()
+void Task::CountDv()
 {
 	unsigned X = _grid.x_nodes() - 1;
 	unsigned Y = _grid.y_nodes() - 1;
-	for(int i = 1; i < Y; i++)					// inner part 
+	for(int i = 0; i < Y; i++)					// inner part 
 	{
-		for(int j = 1; j < X; j++)
+		for(int j = 0; j < X; j++)
 		{
 			double vx_t = 0.0;
-			vx_t += (_grid[i][j + 1].sigma_xx - _grid[i][j - 1].sigma_xx)/_h; 	
-			vx_t += (_grid[i + 1][j].sigma_xy - _grid[i - 1][j].sigma_xy)/_h; 	
-
 			double vy_t = 0.0;
-			vy_t += (_grid[i + 1][j].sigma_yy - _grid[i - 1][j].sigma_yy)/_h; 	
-			vy_t += (_grid[i][j + 1].sigma_xy - _grid[i][j - 1].sigma_xy)/_h; 	
+			PointType pt = _grid[i][j].type;
+			if(pt == INACTIVE)
+				continue;
+			// TODO: count dx and dy somehow for case of irregular grid (like i did it for sigmas)
+			if(pt != TL_CORNER && pt != L_BORDER && pt != BL_CORNER)// if has left neighbor
+			{
+				vx_t -= _grid[i][j - 1].sigma_xx/_h;
+				vy_t -=	_grid[i][j - 1].sigma_xy/_h;
+			}
+			if(pt != TR_CORNER && pt != R_BORDER && pt != BR_CORNER)// if has right neighbor
+			{
+				vx_t += _grid[i][j + 1].sigma_xx/_h;
+				vy_t +=	_grid[i][j + 1].sigma_xy/_h;
+			}
+			if(pt != TR_CORNER && pt != T_BORDER && pt != TL_CORNER)// if has top neighbor
+			{
+				vx_t += _grid[i + 1][j].sigma_xy/_h;
+				vy_t +=	_grid[i + 1][j].sigma_yy/_h;
+			}
+			if(pt != BR_CORNER && pt != B_BORDER && pt != BL_CORNER)// if has bottom neighbor
+			{
+				vx_t -= _grid[i - 1][j].sigma_xy/_h;
+				vy_t -=	_grid[i - 1][j].sigma_yy/_h;
+			}
+	
+			double w_x = _grid[i][j].w_x;
+			double w_y = _grid[i][j].w_y;
 			
-			
-			double w_x = (_grid[i][j + 1].r.w - _grid[i][j - 1].r.w)/2.0/_h;
-			double w_y = (_grid[i + 1][j].r.w - _grid[i - 1][j].r.w)/2.0/_h;
-
 			double norm_x = sqrt(1 + w_x*w_x);
 			double norm_y = sqrt(1 + w_y*w_y);
 			
@@ -321,188 +417,19 @@ void Task::DvInner()
 			_grid[i][j].dv.w =// vx_t*w_x/norm_x + vy_t*w_y/norm_y;
 					 _grid[i][j].dv.u*w_x + _grid[i][j].dv.v*w_y;
 			
-			_grid[i][j].dv += (1.0/_h/_h/_delta)*_grid[i][j].F_ext;
+			double delta = _grid[i][j].delta;
+			_grid[i][j].dv += (1.0/_h/_h/delta)*_grid[i][j].F_ext;
 
 			_grid[i][j].dv *= _tau/_grid[i][j].rho;
 		}
 	}
-
 }
 
-void Task::DvTopBot()
-{
-	unsigned X = _grid.x_nodes() - 1;
-	unsigned Y = _grid.y_nodes() - 1;
-	for(int i = 1; i < X; i++)					// top and bottom borders
-	{
-		// bottom border (y = 0, x = i)
-		double vx_t = 0.0;
-		vx_t += (_grid[0][i + 1].sigma_xx - _grid[0][i - 1].sigma_xx)/_h; 	
-		vx_t += (_grid[1][i].sigma_xy)/_h; 	
-
-		double vy_t = 0.0;
-		vy_t += (_grid[1][i].sigma_yy)/_h; 	
-		vy_t += (_grid[0][i + 1].sigma_xy - _grid[0][i - 1].sigma_xy)/_h; 	
-
-		double w_x = (_grid[0][i + 1].r.w - _grid[0][i - 1].r.w)/2.0/_h;
-		double w_y = (_grid[1][i].r.w - _grid[0][i].r.w)/_h;
-		double norm_x = sqrt(1 + w_x*w_x);
-		double norm_y = sqrt(1 + w_y*w_y);
-
-		_grid[0][i].dv.u = vx_t/norm_x;
-		_grid[0][i].dv.v = vy_t/norm_y;
-		_grid[0][i].dv.w = _grid[0][i].dv.u*w_x + _grid[0][i].dv.v*w_y;
-		
-		_grid[0][i].dv += (1.0/_h/_h/_delta)*_grid[0][i].F_ext;
-
-		_grid[0][i].dv *= _tau/_grid[0][i].rho;
-		//top border ( y = Y, x = i)
-		vx_t = 0.0;
-		vx_t += (_grid[Y][i + 1].sigma_xx - _grid[Y][i - 1].sigma_xx)/_h; 	
-		vx_t -= (_grid[Y - 1][i].sigma_xy)/_h; 	
-
-		vy_t = 0.0;
-		vy_t -= (_grid[Y - 1][i].sigma_yy)/_h; 	
-		vy_t += (_grid[Y][i + 1].sigma_xy - _grid[0][i - 1].sigma_xy)/_h; 	
-
-		w_x = (_grid[Y][i + 1].r.w - _grid[Y][i - 1].r.w)/2.0/_h;
-		w_y = (_grid[Y][i].r.w - _grid[Y - 1][i].r.w)/_h;
-		norm_x = sqrt(1 + w_x*w_x);
-		norm_y = sqrt(1 + w_y*w_y);
-
-		_grid[Y][i].dv.u = vx_t/norm_x;
-		_grid[Y][i].dv.v = vy_t/norm_y;
-		_grid[Y][i].dv.w = _grid[Y][i].dv.u*w_x + _grid[Y][i].dv.v*w_y;
-		
-		_grid[Y][i].dv += (1.0/_h/_h/_delta)*_grid[Y][i].F_ext;
-
-		_grid[Y][i].dv *= _tau/_grid[Y][i].rho;
-	} 
-}
-
-void Task::DvRightLeft()
-{
-	unsigned X = _grid.x_nodes() - 1;
-	unsigned Y = _grid.y_nodes() - 1;
-
-	for(int i = 1; i < Y; i++)					// right and left borders
-	{
-		//left border (y = i, x = 0)
-		double vx_t = 0.0;
-		vx_t += (_grid[i][1].sigma_xx)/_h; 	
-		vx_t += (_grid[i + 1][0].sigma_xy - _grid[i - 1][0].sigma_xy)/_h; 	
-
-		double vy_t = 0.0;
-		vy_t += (_grid[i + 1][0].sigma_yy - _grid[i - 1][0].sigma_yy)/_h; 	
-		vy_t += (_grid[i][1].sigma_xy)/_h; 	
-		
-		double w_x = (_grid[i][1].r.w - _grid[i][0].r.w)/_h;
-		double w_y = (_grid[i + 1][0].r.w - _grid[i - 1][0].r.w)/2.0/_h;
-
-		double norm_x = sqrt(1 + w_x*w_x);
-		double norm_y = sqrt(1 + w_y*w_y);
-		
-		_grid[i][0].dv.u = vx_t/norm_x;
-		_grid[i][0].dv.v = vy_t/norm_y;
-		_grid[i][0].dv.w = _grid[i][0].dv.u*w_x + _grid[i][0].dv.v*w_y;
-		
-		_grid[i][0].dv += (1.0/_h/_h/_delta)*_grid[i][0].F_ext;
-		_grid[i][0].dv *= _tau/_grid[i][0].rho;
-
-		// right border (y = i, x = X)
-		vx_t = 0.0;
-		vx_t -=  (_grid[i][X - 1].sigma_xx)/_h; 	
-		vx_t += (_grid[i + 1][X].sigma_xy - _grid[i - 1][X].sigma_xy)/_h; 	
-
-		vy_t = 0.0;
-		vy_t += (_grid[i + 1][X].sigma_yy - _grid[i - 1][X].sigma_yy)/_h; 	
-		vy_t -= (_grid[i][X - 1].sigma_xy)/_h; 	
-		
-		w_x = (_grid[i][X].r.w - _grid[i][X - 1].r.w)/_h;
-		w_y = (_grid[i + 1][X].r.w - _grid[i - 1][X].r.w)/2.0/_h;
-
-		norm_x = sqrt(1 + w_x*w_x);
-		norm_y = sqrt(1 + w_y*w_y);
-		
-		_grid[i][X].dv.u = vx_t/norm_x;
-		_grid[i][X].dv.v = vy_t/norm_y;
-		_grid[i][X].dv.w = _grid[i][X].dv.u*w_x + _grid[i][X].dv.v*w_y;
-		
-		_grid[i][X].dv += (1.0/_h/_h/_delta)*_grid[i][X].F_ext;
-		_grid[i][X].dv *= _tau/_grid[i][X].rho;
-
-	} 
-}
-
-void Task::DvCorners()
-{
-	unsigned X = _grid.x_nodes() - 1;
-	unsigned Y = _grid.y_nodes() - 1;
-	// left bottom corner (y = 0, x = 0)
-	double vx_t = (_grid[1][0].sigma_xy + _grid[0][1].sigma_xx)/_h;
-	double vy_t = (_grid[1][0].sigma_yy + _grid[0][1].sigma_xy)/_h;
-
-	double w_x = (_grid[0][1].r.w - _grid[0][0].r.w)/_h;
-	double w_y = (_grid[1][0].r.w - _grid[0][0].r.w)/_h;
-	
-	double norm_x = sqrt(1 + w_x*w_x);
-	double norm_y = sqrt(1 + w_y*w_y);
-	_grid[0][0].dv.u = vx_t/norm_x;
-	_grid[0][0].dv.v = vy_t/norm_y;
-	_grid[0][0].dv.w = _grid[0][0].dv.u*w_x + _grid[0][0].dv.v*w_y;
-	_grid[0][0].dv += (1.0/_h/_h/_delta)*_grid[0][0].F_ext;
-	_grid[0][0].dv *= _tau/_grid[0][0].rho;
-	// right bottom corner (y = 0, x = X)
-	vx_t = (_grid[1][X].sigma_xy - _grid[0][X - 1].sigma_xx)/_h;
-	vy_t = (_grid[1][X].sigma_yy - _grid[0][X - 1].sigma_xy)/_h;
-
-	w_x = (- _grid[0][X - 1].r.w + _grid[0][X].r.w)/_h;
-	w_y = (_grid[1][X].r.w - _grid[0][X].r.w)/_h;
-	
-	norm_x = sqrt(1 + w_x*w_x);
-	norm_y = sqrt(1 + w_y*w_y);
-	_grid[0][X].dv.u = vx_t/norm_x;
-	_grid[0][X].dv.v = vy_t/norm_y;
-	_grid[0][X].dv.w = _grid[0][X].dv.u*w_x + _grid[0][X].dv.v*w_y;
-	_grid[0][X].dv += (1.0/_h/_h/_delta)*_grid[0][X].F_ext;
-	_grid[0][X].dv *= _tau/_grid[0][X].rho;
-	// right top corner (y = Y, x = X)
-	vx_t = -(_grid[Y - 1][X].sigma_xy + _grid[Y][X - 1].sigma_xx)/_h;
-	vy_t = -(_grid[Y - 1][X].sigma_yy + _grid[Y][X - 1].sigma_xy)/_h;
-
-	w_x = ( _grid[Y][X].r.w - _grid[Y][X - 1].r.w)/_h;
-	w_y = (_grid[Y][X].r.w - _grid[Y - 1][X].r.w)/_h;
-	
-	norm_x = sqrt(1 + w_x*w_x);
-	norm_y = sqrt(1 + w_y*w_y);
-	_grid[Y][X].dv.u = vx_t/norm_x;
-	_grid[Y][X].dv.v = vy_t/norm_y;
-	_grid[Y][X].dv.w = _grid[Y][X].dv.u*w_x + _grid[Y][X].dv.v*w_y;
-	_grid[Y][X].dv += (1.0/_h/_h/_delta)*_grid[Y][X].F_ext;
-	_grid[Y][X].dv *= _tau/_grid[Y][X].rho;
-	// left top corner (y = Y, x = 0)
-	vx_t = ( -_grid[Y - 1][0].sigma_xy + _grid[Y][1].sigma_xx)/_h;
-	vy_t = ( -_grid[Y - 1][0].sigma_yy + _grid[Y][1].sigma_xy)/_h;
-
-	w_x = ( -_grid[Y][0].r.w + _grid[Y][1].r.w)/_h;
-	w_y = (_grid[Y][0].r.w - _grid[Y - 1][0].r.w)/_h;
-	
-	norm_x = sqrt(1 + w_x*w_x);
-	norm_y = sqrt(1 + w_y*w_y);
-	_grid[Y][0].dv.u = vx_t/norm_x;
-	_grid[Y][0].dv.v = vy_t/norm_y;
-	_grid[Y][0].dv.w = _grid[Y][0].dv.u*w_x + _grid[Y][0].dv.v*w_y;
-	_grid[Y][0].dv += (1.0/_h/_h/_delta)*_grid[Y][0].F_ext;
-	_grid[Y][0].dv *= _tau/_grid[Y][0].rho;
-}
 
 void Task::Iteration()
 {
 	this->CountSigmas();
-	this->DvInner();
-	this->DvTopBot();
-	this->DvRightLeft();
-	this->DvCorners();
+	this->CountDv();
 
 	unsigned X = _grid.x_nodes();
 	unsigned Y = _grid.y_nodes();

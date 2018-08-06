@@ -9,10 +9,10 @@
 // these defaults are temporary
 // will be removed when task input from file is done
 #define TAU 1e-7					// time step
-#define H 1e-3						// spacing
+#define H 1e-2						// spacing
 #define N_CELLS	50
 #define F_EXT 5e-3					// external force	
-#define FRAMES 50			
-#define ITER_PER_FRAME 100
+#define FRAMES 500			
+#define ITER_PER_FRAME 25
 
 #endif /* CONSTANTS_INCL */

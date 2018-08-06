@@ -83,7 +83,7 @@ $F_{ext}$~---~внешняя сила, действует не везде, а в
 	\item Делаем шаг по $dt$, пересчитываем координаты.
 \end{itemize}
 
-Приближаем векторы $r_x, r_y$. В точке с индексами $(n, k)$:
+Приближаем векторы $r_x, r_y$. В точке с индексами $(n, k)$ (не на границе сетки):
 \begin{equation}
 	\frac{\partial w}{\partial x} \sim \frac{w_{n+1,k} - w_{n-1, k}}{2h} \\
 	\frac{\partial w}{\partial y} \sim \frac{w_{n,k+1} - w_{n, k-1}}{2h}
@@ -91,17 +91,29 @@ $F_{ext}$~---~внешняя сила, действует не везде, а в
 
 Введем векторы 
 \begin{equation}
-	\overline{\delta}_x = \begin{pmatrix}
+	\overline{\delta}_x = \frac{1}{2h}
+				\begin{pmatrix}
 				u_{n+1, k} - u_{n-1,k} \\
 				v_{n+1, k} - v_{n-1,k} \\
 				w_{n+1, k} - w_{n-1,k} 
 				\end{pmatrix} \\
-	\overline{\delta}_y = \begin{pmatrix}
+	\overline{\delta}_y = \frac{1}{2h}
+				\begin{pmatrix}
 				u_{n, k+1} - u_{n,k-1} \\
 				v_{n, k+1} - v_{n,k-1} \\
 				w_{n, k+1} - w_{n,k-1} 
 				\end{pmatrix} \\
 \end{equation}
+На границе, например на левом краю, определим 
+\begin{equation}
+	\overline{\delta}_x = \frac{1}{h}
+				\begin{pmatrix}
+				u_{n+1, k} - u_{n,k} \\
+				v_{n+1, k} - v_{n,k} \\
+				w_{n+1, k} - w_{n,k} 
+				\end{pmatrix} \\
+\end{equation}
+и аналогичным образом $\overline{\delta}_x,\ \overline{\delta}_y$ на всех краях.
 
 Спроецируем их на наш локальный базис $\overline{r}_x, \overline{r}_y$:
 \begin{align}
@@ -114,8 +126,8 @@ $F_{ext}$~---~внешняя сила, действует не везде, а в
 Приближаем деформации:
 
 \begin{equation}
-	\varepsilon_{xx} \sim \frac{1}{2h}\Pi_{xx},\ \varepsilon_{yy} \sim \frac{1}{2h}\Pi_{yy}, 
-		\varepsilon_{xy} \sim \frac{1}{4h}(\Pi_{xy} + \Pi_{yx})
+	\varepsilon_{xx} \sim \Pi_{xx},\ \varepsilon_{yy} \sim \Pi_{yy}, 
+		\varepsilon_{xy} \sim \frac{1}{2}(\Pi_{xy} + \Pi_{yx})
 \end{equation}
 
 Зная деформации, получаем напряжения $\sigma_{ij}$, затем приращения скоростей. Проецируем их обратно в трёхмерное пространство:

@@ -8,6 +8,8 @@ int main()
 	
 	vec3 e1(1, 0, 0), e2(0, 1, 0), e3(0, 0, 1);
 
+	vec3 nolik = vec3::zero();
+	nolik.Print();
 	printf("%lg %lg %lg\n", 
 		vec3::Projection(a,e1),
 		vec3::Projection(a,e2),

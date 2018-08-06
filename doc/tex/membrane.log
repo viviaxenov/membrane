@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2017.10.1)  9 JUL 2018 22:30
+This is pdfTeX, Version 3.1415926-2.5-1.40.14 (TeX Live 2013/Debian) (format=pdflatex 2017.10.1)  31 JUL 2018 01:31
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -756,7 +756,7 @@ Overfull \vbox (92.1869pt too high) has occurred while \output is active []
 Here is how much of TeX's memory you used:
  4477 strings out of 494515
  59203 string characters out of 6173718
- 124370 words of memory out of 5000000
+ 125370 words of memory out of 5000000
  7611 multiletter control sequences out of 15000+600000
  15853 words of font info for 51 fonts, out of 8000000 for 9000
  430 hyphenation exceptions out of 8191
@@ -772,7 +772,7 @@ ic/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsf
 onts/cm/cmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm
 /cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.
 pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb>
-Output written on membrane.pdf (2 pages, 113664 bytes).
+Output written on membrane.pdf (2 pages, 113797 bytes).
 PDF statistics:
  165 PDF objects out of 1000 (max. 8388607)
  46 compressed objects within 1 object stream
