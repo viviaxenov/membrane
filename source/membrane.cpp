@@ -1,7 +1,11 @@
 #include<stdio.h>
 #include<strings.h>
+#include<sstream>
 #include<assert.h>
 #include<math.h>
+
+#include<sys/types.h>
+#include<sys/stat.h>
 
 #include"../header/membrane.h"
 #include"../header/constants.h"
@@ -24,7 +28,7 @@ Point::Point(double x_0, double y_0, PointType pt)
 
 	r.zero();
 	v.zero();
-	dv.zero();
+	a.zero();
 	F_ext.zero();
 	sigma_xx = 0;
 	sigma_xy = 0;
@@ -44,7 +48,7 @@ Point::Point(Point& orig)
 	
 	r.zero();
 	v.zero();
-	dv.zero();
+	a.zero();
 	F_ext.zero();
 	sigma_xx = 0;
 	sigma_xy = 0;
@@ -71,7 +75,7 @@ void Point::Set(double x_0, double y_0, PointType pt)
 
 	r.zero();
 	v.zero();
-	dv.zero();
+	a.zero();
 	F_ext.zero();
 	sigma_xx = 0;
 	sigma_xy = 0;
@@ -97,10 +101,10 @@ void Point::SetMaterial(double rho, double E, double mu, double delta)
 	}	
 
 	this->rho = rho;
+	this->delta = delta;
 	A = E/(1.0 - mu*mu);
 	B = mu*A;
 	G = (A - B)/2.0;
-	this->delta = delta;
 }
 
 
@@ -143,7 +147,7 @@ Grid2D::Grid2D(unsigned x_nodes, unsigned y_nodes)
 
 
 
-void Grid2D::SetRect(double dx , double dy)
+void Grid2D::SetRect(double h_x , double h_y)
 {
 	double x = 0, y = 0;	
 	for(unsigned i = 0; i < _y_nodes; i++)
@@ -152,10 +156,12 @@ void Grid2D::SetRect(double dx , double dy)
 		for(unsigned j = 0; j < _x_nodes; j++)
 		{			
 			(*this)[i][j].Set(x, y);
-			x += dx;	
+			x += h_x;	
 		}
-		y += dy;
+		y += h_y;
 	}
+	_h_x = h_x;
+	_h_y = h_y;
 }
 
 
@@ -197,7 +203,7 @@ void Grid2D::DiscardOffsets()
 		{			
 			(*this)[i][j].r.zero();
 			(*this)[i][j].v.zero();
-			(*this)[i][j].dv.zero();
+			(*this)[i][j].a.zero();
 //			(*this)[i][j].F_ext.zero();
 		}
 	}
@@ -299,7 +305,8 @@ vtkSmartPointer<vtkStructuredGrid> Task::vtkSGrid()
 	return structuredGrid;
 }
 
-vec3 Grid2D::delta_x(unsigned x, unsigned y)
+vec3 Grid2D::delta_x(unsigned x, unsigned y)				// NOTE: count distance between cells regerdless of 
+									// _h_x, _h_y so fit for arbitrary grid
 {
 	if(x >= _x_nodes || y >= _y_nodes)
 	{
@@ -369,40 +376,21 @@ vec3 Grid2D::delta_y(unsigned x, unsigned y)
 	return (1.0/dy)*delta;
 }
 
-
-//-------------------------------------------------------------------------------
-//---------------@Task-----------------------------------------------------------
-//-------------------------------------------------------------------------------
-
-Task::Task(double tau, double h, unsigned cells) :
-	_grid(cells, cells), _tau(tau), _h(h)
-{
-	_grid.SetRect(_h, _h);
-	_grid.OuterBorder();
-
-	_grid.SetMaterialUniform(DEF_RHO, DEF_E, DEF_MU, DEF_DELTA);
-	// will be removed when task input from file is done
-}
-
-
-
-
-
-void Task::CountSigmas()						// assuming free border (sigma = 0 on outer border)
-{									// counting only for inner parts
-	unsigned X = _grid.x_nodes();
-	unsigned Y = _grid.y_nodes();
+void Grid2D::CountSigmas()							// assuming free border 
+{									
+	unsigned X = (*this).x_nodes();
+	unsigned Y = (*this).y_nodes();
 	for(int i = 0; i < Y; i++)
 	{
 		for(int j = 0; j < X; j++)
 		{
-			vec3 delta_x = _grid.delta_x(j, i);
-			vec3 delta_y = _grid.delta_y(j, i);
+			vec3 delta_x = (*this).delta_x(j, i);
+			vec3 delta_y = (*this).delta_y(j, i);
 
 			double w_x = delta_x.w;
 			double w_y = delta_y.w;
-			_grid[i][j].w_x = w_x;				// saving for further use
-			_grid[i][j].w_y = w_y;
+			(*this)[i][j].w_x = w_x;				// saving for further use
+			(*this)[i][j].w_y = w_y;
 
 			vec3 r_x(1, 0, w_x);
 			vec3 r_y(0, 1, w_y);
@@ -416,72 +404,110 @@ void Task::CountSigmas()						// assuming free border (sigma = 0 on outer border
 			double eps_yy = Pi_yy;
 			double eps_xy = (Pi_xy + Pi_yx)/2.0;
 
-			_grid[i][j].sigma_xx = _grid[i][j].A*eps_xx + _grid[i][j].B*eps_yy;	
-			_grid[i][j].sigma_yy = _grid[i][j].A*eps_yy + _grid[i][j].B*eps_xx;	
-			_grid[i][j].sigma_xy = _grid[i][j].G*eps_xy; 
+			(*this)[i][j].sigma_xx = (*this)[i][j].A*eps_xx + (*this)[i][j].B*eps_yy;	
+			(*this)[i][j].sigma_yy = (*this)[i][j].A*eps_yy + (*this)[i][j].B*eps_xx;	
+			(*this)[i][j].sigma_xy = (*this)[i][j].G*eps_xy; 
 		}
 	}
 }	
 
-void Task::CountDv()
+
+void Grid2D::CountAcceleration()
 {
-	unsigned X = _grid.x_nodes() - 1;
-	unsigned Y = _grid.y_nodes() - 1;
-	for(int i = 0; i < Y; i++)					// inner part 
+	unsigned X = (*this).x_nodes() - 1;
+	unsigned Y = (*this).y_nodes() - 1;
+	for(int i = 0; i < Y; i++)					
 	{
 		for(int j = 0; j < X; j++)
 		{
+
 			double vx_t = 0.0;
 			double vy_t = 0.0;
-			PointType pt = _grid[i][j].type;
+			PointType pt = (*this)[i][j].type;
 			if(pt == INACTIVE)
 				continue;
 			// TODO: count dx and dy somehow for case of irregular grid (like i did it for sigmas)
 			if(pt != TL_CORNER && pt != L_BORDER && pt != BL_CORNER)// if has left neighbor
 			{
-				vx_t -= _grid[i][j - 1].sigma_xx/_h;
-				vy_t -=	_grid[i][j - 1].sigma_xy/_h;
+				vx_t -= (*this)[i][j - 1].sigma_xx/_h_x;
+				vy_t -=	(*this)[i][j - 1].sigma_xy/_h_x;
 			}
 			if(pt != TR_CORNER && pt != R_BORDER && pt != BR_CORNER)// if has right neighbor
 			{
-				vx_t += _grid[i][j + 1].sigma_xx/_h;
-				vy_t +=	_grid[i][j + 1].sigma_xy/_h;
+				vx_t += (*this)[i][j + 1].sigma_xx/_h_x;
+				vy_t +=	(*this)[i][j + 1].sigma_xy/_h_x;
 			}
 			if(pt != TR_CORNER && pt != T_BORDER && pt != TL_CORNER)// if has top neighbor
 			{
-				vx_t += _grid[i + 1][j].sigma_xy/_h;
-				vy_t +=	_grid[i + 1][j].sigma_yy/_h;
+				vx_t += (*this)[i + 1][j].sigma_xy/_h_y;
+				vy_t +=	(*this)[i + 1][j].sigma_yy/_h_y;
 			}
 			if(pt != BR_CORNER && pt != B_BORDER && pt != BL_CORNER)// if has bottom neighbor
 			{
-				vx_t -= _grid[i - 1][j].sigma_xy/_h;
-				vy_t -=	_grid[i - 1][j].sigma_yy/_h;
+				vx_t -= (*this)[i - 1][j].sigma_xy/_h_y;
+				vy_t -=	(*this)[i - 1][j].sigma_yy/_h_y;
 			}
+
+
 	
-			double w_x = _grid[i][j].w_x;
-			double w_y = _grid[i][j].w_y;
+			double w_x = (*this)[i][j].w_x;
+			double w_y = (*this)[i][j].w_y;
 			
 			double norm_x = sqrt(1 + w_x*w_x);
 			double norm_y = sqrt(1 + w_y*w_y);
 			
-			_grid[i][j].dv.u = vx_t/norm_x;
-			_grid[i][j].dv.v = vy_t/norm_y;
-			_grid[i][j].dv.w =// vx_t*w_x/norm_x + vy_t*w_y/norm_y;
-					 _grid[i][j].dv.u*w_x + _grid[i][j].dv.v*w_y;
+			(*this)[i][j].a.u = vx_t/norm_x;
+			(*this)[i][j].a.v = vy_t/norm_y;
+			(*this)[i][j].a.w =// vx_t*w_x/norm_x + vy_t*w_y/norm_y;
+					 (*this)[i][j].a.u*w_x + (*this)[i][j].a.v*w_y;
 			
-			double delta = _grid[i][j].delta;
-			_grid[i][j].dv += (1.0/_h/_h/delta)*_grid[i][j].F_ext;
+			double delta = (*this)[i][j].delta;
+			(*this)[i][j].a += (1.0/_h_x/_h_y/delta)*(*this)[i][j].F_ext;
 
-			_grid[i][j].dv *= _tau/_grid[i][j].rho;
+			(*this)[i][j].a *= 1.0/(*this)[i][j].rho;
 		}
 	}
 }
 
 
+
+//-------------------------------------------------------------------------------
+//---------------@Task-----------------------------------------------------------
+//-------------------------------------------------------------------------------
+
+Task::Task(double tau, double h, unsigned cells) :
+	_grid(cells, cells), _tau(tau)
+{
+	_grid.SetRect(h, h);
+	// assume membrane to be square; will make other geometry
+	// when file input is done
+	_grid.OuterBorder();
+
+	_grid.SetMaterialUniform(DEF_RHO, DEF_E, DEF_MU, DEF_DELTA);
+	// will be removed when task input from file is done
+	_output_dir = "";						
+
+	frames = 0;
+	iter_per_frame = 0;
+}
+
+int Task::SetOutputDir(string of)
+{
+	struct stat sb;
+	if(stat(of.c_str(), &sb) == -1 || ((sb.st_mode & S_IFMT) != S_IFDIR))
+	{
+		if(mkdir(of.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0)		// not sure of those flags
+			return -1;
+	}
+	
+	_output_dir = of;
+	return 0;
+}
+
 void Task::Iteration()
 {
-	this->CountSigmas();
-	this->CountDv();
+	_grid.CountSigmas();
+	_grid.CountAcceleration();
 
 	unsigned X = _grid.x_nodes();
 	unsigned Y = _grid.y_nodes();
@@ -489,11 +515,39 @@ void Task::Iteration()
 	{
 		for(int j = 0; j < X; j++)
 		{
-			_grid[i][j].v += _grid[i][j].dv;
+			_grid[i][j].v += _tau*_grid[i][j].a;
 			_grid[i][j].r += _tau*_grid[i][j].v;
 		}
 	}
 }
+
+int Task::Execute()
+{
+	if(frames == 0 || iter_per_frame == 0 || _output_dir == "")
+		return -1;
+
+	vtkSmartPointer<vtkStructuredGrid> sg = (*this).vtkSGrid();		
+	vtkSmartPointer<vtkXMLStructuredGridWriter> writer =
+		vtkSmartPointer<vtkXMLStructuredGridWriter>::New();
+
+	for(int i = 0; i <= frames; i++)
+	{
+		for(int j = 0; (j < iter_per_frame) && (i != 0); j++)
+			(*this).Iteration();
+
+		sg = (*this).vtkSGrid();		
+		
+		std::ostringstream path;
+		path << _output_dir << "/f" << i << ".vts";
+
+		writer->SetFileName(path.str().c_str());
+		writer->SetInputData(sg);
+		writer->Write();
+	}
+
+	return 0;
+}
+
 
 
 void Task::SetFextPt(unsigned x, unsigned y, double F_u, double F_v, double F_w)

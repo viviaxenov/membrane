@@ -7,45 +7,30 @@
 
 
 
-int main()
+int main(int argc, char *argv[])
 {
-	Task test(TAU, H, N_CELLS);
 
-	test.SetOffPt(N_CELLS/2, N_CELLS/2, 0, 0, 0.5*H);
-	test.SetOffPt(N_CELLS/2 - 1, N_CELLS/2, 0, 0, 0.5*H);
-	test.SetOffPt(N_CELLS/2, N_CELLS/2 - 1, 0, 0, 0.5*H);
-	test.SetOffPt(N_CELLS/2 - 1, N_CELLS/2 - 1, 0, 0, 0.5*H);
-
-	vtkSmartPointer<vtkStructuredGrid> sg = test.vtkSGrid();		
-	vtkSmartPointer<vtkXMLStructuredGridWriter> writer =
-		vtkSmartPointer<vtkXMLStructuredGridWriter>::New();
-
-	char path[50];
-	int i = 0;
-	for(i = 1; i <= FRAMES; i++)
+	if(argc != 4)
 	{
-		for(int j = 0; j < ITER_PER_FRAME; j++)
-			test.Iteration();
-		sg = test.vtkSGrid();		
-
-		sprintf(path, "output/f%d.vts", i);
-		writer->SetFileName(path);
-		writer->SetInputData(sg);
-		writer->Write();
+		printf("USAGE: TestVTK frames iter_per_frame output_dir\n");
+		return -1;
 	}
 
-//	test.SetFextPt(N_CELLS/2, N_CELLS/2, 0, 0, 0);
-//	for(; i < 4*FRAMES; i++)
-//	{
-//		for(int j = 0; j < ITER_PER_FRAME; j++)
-//			test.Iteration();
-//		sg = test.vtkSGrid();		
-//
-//		sprintf(path, "output/f%d.vts", i);
-//		writer->SetFileName(path);
-//		writer->SetInputData(sg);
-//		writer->Write();
-//	}
-	
+	Task test(TAU, H, N_CELLS);
+
+	test.frames = atoi(argv[1]);
+	test.iter_per_frame = atoi(argv[2]);
+	test.SetOutputDir(string(argv[3]));
+
+
+	double amp = 0.1;
+
+	test.SetOffPt(N_CELLS/2, N_CELLS/2, 0, 0, amp*H);
+	test.SetOffPt(N_CELLS/2 - 1, N_CELLS/2, 0, 0, amp*H);
+	test.SetOffPt(N_CELLS/2, N_CELLS/2 - 1, 0, 0, amp*H);
+	test.SetOffPt(N_CELLS/2 - 1, N_CELLS/2 - 1, 0, 0, amp*H);
+
+	test.Execute();
+
 	return 0;
 }
